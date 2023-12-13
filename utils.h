@@ -26,5 +26,6 @@ int neighborarm(int n);
 XYZ real_vector(XYZ origin,double L);
 vector<Molecule> generate_unitcell(Molecule M1);
 vector<Molecule> generate_newunit(vector<Molecule> origin_cell,int latticeindex1,int latticeindex2,int latticeindex3);
+bool Aresame(double a,double b);
 
 #endif

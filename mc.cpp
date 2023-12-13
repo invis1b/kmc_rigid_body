@@ -316,7 +316,7 @@ double MC::MoveMolecule()
                     cout<<"toolarge"<<endl;
                 }
             S.M[index]=newmolecule;
-    
+            S.Ag[newmolecule.AID].M_A[newmolecule.AsubID]=newmolecule.MOL_ID;
             accept+=1.0;
             energy+=delta;
 
@@ -364,19 +364,15 @@ double MC::MoveMolecule()
                         new_aggregate.n+=old_aggregate2.n;
                         for(int i=0;i<old_aggregate2.M_A.size();i++)
                         {
-                            old_aggregate2.M_A[i].AID=AID1;
-                            old_aggregate2.M_A[i].AsubID+=old_aggregate1.n;
-                            S.M[old_aggregate2.M_A[i].MOL_ID].AID=AID1;
-                            S.M[old_aggregate2.M_A[i].MOL_ID].AsubID+=old_aggregate1.n;
+                            S.M[old_aggregate2.M_A[i]].AID=AID1;
+                            S.M[old_aggregate2.M_A[i]].AsubID+=old_aggregate1.n;
                         }
                         new_aggregate.M_A.insert(new_aggregate.M_A.end(),old_aggregate2.M_A.begin(),old_aggregate2.M_A.end());
                         S.Ag[AID1]=new_aggregate;
                         S.Ag[AID2]=S.Ag.back();
                         for(int i=0;i<S.Ag[AID2].M_A.size();i++)
                         {
-                            S.Ag[AID2].M_A[i].AID=AID2;
-                            S.M[S.Ag[AID2].M_A[i].MOL_ID].AID=AID2;
-                            
+                            S.M[S.Ag[AID2].M_A[i]].AID=AID2;    
                         }
                         S.Ag.pop_back();
 
@@ -388,76 +384,89 @@ double MC::MoveMolecule()
         
         
     }
-    /*
     //Aggregate diffusion
-    vector<Aggregate>::iterator ita;
-    for(ita=S.Ag.begin();ita!=S.Ag.end();)
+    //vector<Aggregate>::iterator ita;
+    for(int a=0;a<S.Ag.size();a++)
     {
-        Aggregate old_aggregate=*ita;
+        Aggregate old_aggregate=S.Ag[a];
         if(old_aggregate.n<2)
-        {ita++;
-        continue;}
+        {
+            continue;}
         if(old_aggregate.n>=2)
         {
             double delta;//energy difference, only WCA with other aggregate
+            vector<Molecule> newmolecule_list;
+            for(int i=0;i<old_aggregate.n;i++)
+            {
+                newmolecule_list.push_back(S.M[old_aggregate.M_A[i]]);
+            }
+            XYZ difference=image(S.M[old_aggregate.M_A[1]].centre-S.M[old_aggregate.M_A[0]].centre,S.L);
             Aggregate new_aggregate=old_aggregate;//first give all the information of old aggregate to new aggregate
             //calculate the diffusion step according to n
             double MCstep_ag=S.MCstep/pow(old_aggregate.n,1/6);//new MCstep according to particle number
             double MCstep_agrotate=S.MCstep_rotation/pow(old_aggregate.n,1/2);//new MCstep_rotation
             XYZ total_translate=RandomTranslatestep(MCstep_ag,gsl_rng_uniform(S.gsl_r),gsl_rng_uniform(S.gsl_r));//generate random translation for the whole aggregate
+            //cout<<total_translate.x<<total_translate.x<<endl;
             quarternion total_rotate=RandomRotatestep(MCstep_agrotate,gsl_rng_uniform(S.gsl_r),gsl_rng_uniform(S.gsl_r));//random rotation operation
             XYZ cm;//center of mass
-            XYZ shift=image(old_aggregate.M_A[0].centre,S.L);//shift one particle to the center of box
+            XYZ shift=image(S.M[old_aggregate.M_A[0]].centre,S.L);//shift one particle to the center of box
             shift=XYZ(-shift.x,-shift.y,-shift.z);
             XYZ sum_xyz;
             double sum_mass=7*old_aggregate.n;
             for(int i=1;i<old_aggregate.n;i++)
             {
-                XYZ centre_shift=old_aggregate.M_A[i].centre+shift;
+                XYZ centre_shift=S.M[old_aggregate.M_A[i]].centre+shift;
                 XYZ image_centre=image(centre_shift,S.L);
                 sum_xyz=sum_xyz+image_centre;
                 for(int j=0;j<6;j++)
                 {
-                    XYZ ver_shift=old_aggregate.M_A[i].ver[j]+shift;
+                    XYZ ver_shift=S.M[old_aggregate.M_A[i]].ver[j]+shift;
                     XYZ image_ver=image(ver_shift,S.L);
                     sum_xyz=sum_xyz+image_ver;
                 }
             }
             cm=sum_xyz/sum_mass;//generate center of mass
-            new_aggregate.cm=image(cm-shift,S.L);
+            //new_aggregate.cm=image(cm-shift,S.L);
             //translate and rotate all particles
             for(int i=0;i<old_aggregate.n;i++)
             {
-                XYZ centre_cm_vec=image(old_aggregate.M_A[i].centre+shift-cm,S.L);
+                XYZ centre_cm_vec=image(S.M[old_aggregate.M_A[i]].centre+shift-cm,S.L);
                 XYZ new_centre_cm_vec=quarterrotation(centre_cm_vec,total_rotate);
                 XYZ movement=new_centre_cm_vec-centre_cm_vec;
-                new_aggregate.M_A[i].centre=new_aggregate.M_A[i].centre+movement+total_translate;
-                XYZ image_center=image(new_aggregate.M_A[i].centre,S.L);
+                newmolecule_list[i].centre=newmolecule_list[i].centre+total_translate;//temporarily delete the rotation
+                XYZ image_center=image(newmolecule_list[i].centre,S.L);
                 //update grid id, put in the new aggregate
                 int new_gID=GridIndex_xyz(image_center,S.NGRID,S.GRIDL,S.L);
-                new_aggregate.M_A[i].gID=new_gID;
-                for(int j=0;j<6;j++)
+                newmolecule_list[i].gID=new_gID;
+                newmolecule_list[i].UpdateVertices();
+                /*for(int j=0;j<6;j++)
                 {
                     XYZ ver_cm_vec=image(old_aggregate.M_A[i].ver[j]+shift-cm,S.L);
                     XYZ new_ver_cm_vec=quarterrotation(ver_cm_vec,total_rotate);
                     XYZ movement=new_ver_cm_vec-ver_cm_vec;
-                    new_aggregate.M_A[i].ver[j]=new_aggregate.M_A[i].ver[j]+movement+total_translate;
-                }
+                    new_aggregate.M_A[i].ver[j]=new_aggregate.M_A[i].ver[j]+total_translate;//temporarily delete the rotation
+                }*/
             }
+            XYZ difference2=image(newmolecule_list[1].centre-newmolecule_list[0].centre,S.L);
+            /*if(!Aresame(difference.x,difference2.x))
+            {
+                cout<<"error in total translate"<<endl;
+                exit(2);
+            }*/
             //calculate wca energy difference
             for(int i=0;i<old_aggregate.n;i++)
             {
                 
                 
-                Molecule newmolecule=new_aggregate.M_A[i];//pass info of new molecule in new aggregate to newmolecule
-                Molecule oldmolecule=old_aggregate.M_A[i];//pass info of old molecule in old aggregate to oldmolecule
-                vector<hbond> old_hbondlist=new_aggregate.M_A[i].hbond_list;
+                Molecule newmolecule=newmolecule_list[i];//pass info of new molecule in new aggregate to newmolecule
+                Molecule oldmolecule=S.M[old_aggregate.M_A[i]];//pass info of old molecule in old aggregate to oldmolecule
+                vector<hbond> old_hbondlist=newmolecule_list[i].hbond_list;
                 vector<hbond> new_hbondlist;
                 new_hbondlist.clear();
                 int new_hbond=0;
                 //add wca energy
                 //add new wca
-                int new_gID=new_aggregate.M_A[i].gID;
+                int new_gID=newmolecule_list[i].gID;
                 for(int l=0;l<nbr_g;l++)
                 {
                     //ID of new neighboring grids
@@ -481,7 +490,7 @@ double MC::MoveMolecule()
                         {
                             //image distance
                             double rnew2=min_d2(S.M[j].centre,newmolecule.centre,S.L);
-                            delta+=E.WCA(rnew2);*/
+                            delta+=E.WCA(rnew2);
                             /*//find possible new bonds
                             double r2_cm=min_d2(newmolecule.centre,S.M[j].centre,S.L);
                             if (r2_cm<S.search2_cm)//check if the cm distance is in the range, can save time
@@ -528,14 +537,14 @@ double MC::MoveMolecule()
                                     }
                                 }*/
                                 
-                        /*}
+                            }
 
 
-                    }   
-                }
+                        }   
+                    }
                 //subtract old wca
                 //subtract old wca
-                int old_gID=old_aggregate.M_A[i].gID;
+                int old_gID=S.M[old_aggregate.M_A[i]].gID;
                 for(int l=0;l<nbr_g;l++)
                 {
                     //ID of new neighboring grids
@@ -547,11 +556,8 @@ double MC::MoveMolecule()
                         if(S.M[j].AID!=oldmolecule.AID)
                         {
                             //image distance
-                            double rold2=min_d2(S.M[j].centre,old_aggregate.M_A[i].centre,S.L);
+                            double rold2=min_d2(S.M[j].centre,S.M[old_aggregate.M_A[i]].centre,S.L);
                             delta-=E.WCA(rold2);
-                            
-
-
                         }
                     }
                 }       
@@ -560,27 +566,27 @@ double MC::MoveMolecule()
             {
                 //Accept move
                 //update aggregate
-                *ita=new_aggregate;
+                S.Ag[a]=new_aggregate;
                 for(int i=0;i<new_aggregate.n;i++)
                 {
-                    int old_gID=S.M[new_aggregate.M_A[i].MOL_ID].gID;
-                    int new_gID=new_aggregate.M_A[i].gID;
+                    int old_gID=S.M[new_aggregate.M_A[i]].gID;
+                    int new_gID=newmolecule_list[i].gID;
                     if(old_gID!=new_gID)
                     {
                         //update grid list
                         
                         S.G[old_gID].n-=1;
-                        S.G[old_gID].plist.remove(new_aggregate.M_A[i].MOL_ID);
+                        S.G[old_gID].plist.remove(newmolecule_list[i].MOL_ID);
                     
                         S.G[new_gID].n+=1;
-                        S.G[new_gID].plist.push_back(new_aggregate.M_A[i].MOL_ID);
+                        S.G[new_gID].plist.push_back(newmolecule_list[i].MOL_ID);
 
                     }
-                    S.M[new_aggregate.M_A[i].MOL_ID]=new_aggregate.M_A[i];
+                    S.M[new_aggregate.M_A[i]]=newmolecule_list[i];
                     
                 }
                 accept+=1.0;
-                energy+=delta;*/
+                energy+=delta;
                 /*//form bonds if accept
                 if (new_hbond!=-1)
                 {
@@ -604,10 +610,13 @@ double MC::MoveMolecule()
                     }
 
                 }*/
-            /*} 
-            ita++;           
-        }  
-    } */      
+            } 
+                     
+        }
+              
+    }        
+    
+    
     
     
     return accept/double(S.NMOL);
@@ -699,13 +708,14 @@ double MC::Dihedral_energy()
     }
     return edihedral;   
 }
-double MC::bond_energy()
+int MC::bond_energy()
 {
     double ebond;
-    ebond=-S.H.size()*S.E_1;
-    return ebond;
+    int nbond=S.H.size();
+    //ebond=-nbond*S.E_1;
+    return nbond;
 }
-double MC::bond_freeze_freenerngy()
+int MC::bond_freeze_freenerngy()
 {
     double efreeze;
     int nfreeze;
@@ -720,6 +730,7 @@ double MC::bond_freeze_freenerngy()
         }
     }
     efreeze=nfreeze*S.free_bond_freeenergy;
+    return nfreeze;
 }
 double MC::TotalEnergy()
 {

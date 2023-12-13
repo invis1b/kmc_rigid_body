@@ -201,3 +201,7 @@ vector<Molecule> generate_newunit(vector<Molecule> origin_cell,int latticeindex1
 {
   
 }
+bool Aresame(double a,double b)
+{
+    return fabs(a-b)<DBL_EPSILON;
+}

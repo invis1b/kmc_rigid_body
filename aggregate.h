@@ -13,7 +13,7 @@ private:
     
     
 
-    void DFS(int node, std::vector<bool>& visited, vector<Molecule>& component) {
+    /*void DFS(int node, std::vector<bool>& visited, vector<Molecule>& component) {
         visited[node] = true;
         component.push_back(M_A[node]); 
 
@@ -22,15 +22,15 @@ private:
                 DFS(neighbour, visited, component);
             }
         }
-    }
+    }*/
 public:
     double L;
     int n; //number of particles
-    vector<Molecule> M_A; //vector of Molecules
+    vector<int> M_A; //vector of Molecules
     double rg2; //radius of gyration squared;
     XYZ cm;
     Aggregate(){n=0; rg2=0.0;cm=XYZ(0,0,0);}
-    vector<vector<Molecule>> getConnectedComponents() {
+    /*vector<vector<Molecule>> getConnectedComponents() {
         vector<bool> visited(n, false);
         vector<vector<Molecule>> connectedComponents;
 
@@ -43,7 +43,7 @@ public:
         }
 
         return connectedComponents;
-    }
+    }*/
 
 };
 #endif

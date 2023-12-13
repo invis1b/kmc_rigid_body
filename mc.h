@@ -28,8 +28,8 @@ class MC
         double FENE_energy();
         double Angle_energy();
         double Dihedral_energy();
-        double bond_energy();
-        double bond_freeze_freenerngy();
+        int bond_energy();
+        int bond_freeze_freenerngy();
         double TotalEnergy();
         double WriteEnergy(int timestep);
 };

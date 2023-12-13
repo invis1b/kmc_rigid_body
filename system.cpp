@@ -84,7 +84,7 @@ void System::Create()
         Aggregate A;
         A.n=1;
         A.rg2=1.1;
-        A.M_A.push_back(m);
+        A.M_A.push_back(m.MOL_ID);
         A.L=L;
         Ag.push_back(A);
 
@@ -252,7 +252,7 @@ void System::WriteAggregate(int timestep)
     {
         Aggregate ag=Ag[i];
         for(int j=0;j<ag.n;j++)
-        out<<setw(12)<<i<<setw(12)<<ag.cm.x<<setw(12)<<ag.cm.y<<setw(12)<<ag.cm.z<<setw(12)<<ag.M_A[j].MOL_ID<<endl;
+        out<<setw(12)<<i<<setw(12)<<ag.cm.x<<setw(12)<<ag.cm.y<<setw(12)<<ag.cm.z<<setw(12)<<ag.M_A[j]<<endl;
             
         
         
