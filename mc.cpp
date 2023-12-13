@@ -402,8 +402,8 @@ double MC::MoveMolecule()
             double delta;//energy difference, only WCA with other aggregate
             Aggregate new_aggregate=old_aggregate;//first give all the information of old aggregate to new aggregate
             //calculate the diffusion step according to n
-            double MCstep_ag=S.MCstep/pow(old_aggregate.n,1/3);//new MCstep according to particle number
-            double MCstep_agrotate=S.MCstep_rotation/pow(old_aggregate.n,1/3);//new MCstep_rotation
+            double MCstep_ag=S.MCstep/pow(old_aggregate.n,1/6);//new MCstep according to particle number
+            double MCstep_agrotate=S.MCstep_rotation/pow(old_aggregate.n,1/2);//new MCstep_rotation
             XYZ total_translate=RandomTranslatestep(MCstep_ag,gsl_rng_uniform(S.gsl_r),gsl_rng_uniform(S.gsl_r));//generate random translation for the whole aggregate
             quarternion total_rotate=RandomRotatestep(MCstep_agrotate,gsl_rng_uniform(S.gsl_r),gsl_rng_uniform(S.gsl_r));//random rotation operation
             XYZ cm;//center of mass

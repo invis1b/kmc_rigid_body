@@ -59,7 +59,7 @@ class System
         ("GSL_SEED,g", value<int>(&GSL_SEED)->default_value(10), "seed for the RNG (default 10)")
         ("Description,D", value<string>(&Description)->default_value("nanorod"), "Description (default nanorod)");
 
-        MCstep_rotation=(3/4)*MCstep;
+        MCstep_rotation=sqrt(3/4)*MCstep;
         variables_map vm;
         store(parse_command_line(argc, argv, desc), vm);
         notify(vm);
