@@ -98,9 +98,9 @@ double MC::MoveMolecule()
     //out2.open("bond_energy.txt",ios::app);
     double accept=0.0;//accept events
     
-    int N_break;
-    int index;
-    double delta;
+    int N_break=0;
+    
+    
     /*//break bonds
     list<hbond>::iterator it;
     double rand=gsl_rng_uniform(S.gsl_r);
@@ -172,8 +172,8 @@ double MC::MoveMolecule()
     //individual diffusion
     for(int i=0; i<S.NMOL; i++)
     {
-        index=gsl_rng_uniform_int(S.gsl_r,S.NMOL);//randomly pick one molecule
-        delta=0;//energy difference
+        int index=gsl_rng_uniform_int(S.gsl_r,S.NMOL);//randomly pick one molecule
+        double delta=0;//energy difference
         //int index=sequence_M[i];//index of the current trial molecule
         vector<hbond> old_hbondlist=S.M[index].hbond_list;
         Molecule newmolecule=S.M[index];//pass old molecule info to new molecule
@@ -258,13 +258,13 @@ double MC::MoveMolecule()
                                     
                                     
                                     bool bonded=false;//check if there is already bonds between the two molecules, only one bond can exist between two molecules
-                                    for(int n=0;n<old_hbondlist.size();n++)
+                                    /*for(int n=0;n<old_hbondlist.size();n++)
                                     {
                                         if(old_hbondlist[n].M2==j)
                                         {
                                             bonded=true;
                                         }
-                                    }
+                                    }*/
                                     for(int n=0;n<new_hbondlist.size();n++)
                                     {
                                         if(new_hbondlist[n].M2==j)
@@ -394,7 +394,8 @@ double MC::MoveMolecule()
             continue;}
         if(old_aggregate.n>=2)
         {
-            double delta;//energy difference, only WCA with other aggregate
+            
+            double deltaag=0;//energy difference, only WCA with other aggregate
             vector<Molecule> newmolecule_list;
             for(int i=0;i<old_aggregate.n;i++)
             {
@@ -433,7 +434,9 @@ double MC::MoveMolecule()
                 XYZ centre_cm_vec=image(S.M[old_aggregate.M_A[i]].centre+shift-cm,S.L);
                 XYZ new_centre_cm_vec=quarterrotation(centre_cm_vec,total_rotate);
                 XYZ movement=new_centre_cm_vec-centre_cm_vec;
-                newmolecule_list[i].centre=newmolecule_list[i].centre+total_translate;//temporarily delete the rotation
+                newmolecule_list[i].centre=newmolecule_list[i].centre+total_translate+movement;//temporarily delete the rotation
+                newmolecule_list[i].orientation=quartermulti(total_rotate,newmolecule_list[i].orientation);
+                newmolecule_list[i].orientation.normalize();
                 XYZ image_center=image(newmolecule_list[i].centre,S.L);
                 //update grid id, put in the new aggregate
                 int new_gID=GridIndex_xyz(image_center,S.NGRID,S.GRIDL,S.L);
@@ -448,12 +451,16 @@ double MC::MoveMolecule()
                 }*/
             }
             XYZ difference2=image(newmolecule_list[1].centre-newmolecule_list[0].centre,S.L);
+            
             /*if(!Aresame(difference.x,difference2.x))
             {
                 cout<<"error in total translate"<<endl;
                 exit(2);
             }*/
-            //calculate wca energy difference
+            //calculate wca energy difference and find new bonds
+            int new_hbond=-1;
+            vector<hbond> new_hbondlist;
+            new_hbondlist.clear();
             for(int i=0;i<old_aggregate.n;i++)
             {
                 
@@ -461,9 +468,8 @@ double MC::MoveMolecule()
                 Molecule newmolecule=newmolecule_list[i];//pass info of new molecule in new aggregate to newmolecule
                 Molecule oldmolecule=S.M[old_aggregate.M_A[i]];//pass info of old molecule in old aggregate to oldmolecule
                 vector<hbond> old_hbondlist=newmolecule_list[i].hbond_list;
-                vector<hbond> new_hbondlist;
-                new_hbondlist.clear();
-                int new_hbond=0;
+                
+                
                 //add wca energy
                 //add new wca
                 int new_gID=newmolecule_list[i].gID;
@@ -490,8 +496,8 @@ double MC::MoveMolecule()
                         {
                             //image distance
                             double rnew2=min_d2(S.M[j].centre,newmolecule.centre,S.L);
-                            delta+=E.WCA(rnew2);
-                            /*//find possible new bonds
+                            deltaag+=E.WCA(rnew2);
+                            //find possible new bonds
                             double r2_cm=min_d2(newmolecule.centre,S.M[j].centre,S.L);
                             if (r2_cm<S.search2_cm)//check if the cm distance is in the range, can save time
                             {
@@ -530,18 +536,19 @@ double MC::MoveMolecule()
                                             }
                                             if(bonded==false)
                                             {
-                                                new_hbondlist.push_back(hbond(index,j,k,l));
+                                                new_hbondlist.push_back(hbond(newmolecule.MOL_ID,j,k,l));
                                                 new_hbond=1;
                                             }
                                         }
                                     }
-                                }*/
+                                }
                                 
                             }
 
 
                         }   
                     }
+                }
                 //subtract old wca
                 //subtract old wca
                 int old_gID=S.M[old_aggregate.M_A[i]].gID;
@@ -557,12 +564,12 @@ double MC::MoveMolecule()
                         {
                             //image distance
                             double rold2=min_d2(S.M[j].centre,S.M[old_aggregate.M_A[i]].centre,S.L);
-                            delta-=E.WCA(rold2);
+                            deltaag-=E.WCA(rold2);
                         }
                     }
                 }       
             }
-            if(Glauber(delta,gsl_rng_uniform(S.gsl_r)))
+            if(Glauber(deltaag,gsl_rng_uniform(S.gsl_r)))
             {
                 //Accept move
                 //update aggregate
@@ -586,19 +593,21 @@ double MC::MoveMolecule()
                     
                 }
                 accept+=1.0;
-                energy+=delta;
-                /*//form bonds if accept
+                energy+=deltaag;
+                //form bonds if accept
                 if (new_hbond!=-1)
                 {
                     for(int m=0;m<new_hbondlist.size();m++) 
                     {
-                        S.M[index].hbond_list.push_back(new_hbondlist[m]);
-                        S.M[index].vertype[new_hbondlist[m].arm1]='I';
-                        S.M[index].nbonds+=1;
+                        //update hbond list and nbonds and vertypes of the two molecules
+                        S.M[new_hbondlist[m].M1].hbond_list.push_back(new_hbondlist[m]);
+                        S.M[new_hbondlist[m].M1].vertype[new_hbondlist[m].arm1]='I';
+                        S.M[new_hbondlist[m].M1].nbonds+=1;
                         S.M[new_hbondlist[m].M2].hbond_list.push_back(hbond(new_hbondlist[m].M2,new_hbondlist[m].M1,new_hbondlist[m].arm2,new_hbondlist[m].arm1));
                         S.M[new_hbondlist[m].M2].vertype[new_hbondlist[m].arm2]='I';
                         S.M[new_hbondlist[m].M2].nbonds+=1;
                         out<<"form a hbond"<<setw(12)<<new_hbondlist[m].M1<<setw(12)<<new_hbondlist[m].M2<<setw(12)<<new_hbondlist[m].arm1<<setw(12)<<new_hbondlist[m].arm2<<endl;
+                        //update the hbondlist of the system
                         if(new_hbondlist[m].M1<new_hbondlist[m].M2)
                         {
                             S.H.push_back(new_hbondlist[m]);
@@ -607,9 +616,34 @@ double MC::MoveMolecule()
                         {
                             S.H.push_back(hbond(new_hbondlist[m].M2,new_hbondlist[m].M1,new_hbondlist[m].arm2,new_hbondlist[m].arm1));
                         }
+                        //update the aggregate
+                        if(S.M[new_hbondlist[m].M1].AID!=S.M[new_hbondlist[m].M2].AID)
+                        {
+                            int AID1=S.M[new_hbondlist[m].M1].AID;
+                            int AID2=S.M[new_hbondlist[m].M2].AID;
+                            Aggregate old_aggregate1=S.Ag[AID1];
+                            Aggregate old_aggregate2=S.Ag[AID2];
+                            //merge two aggregate
+                            Aggregate new_aggregate=old_aggregate1;
+                            new_aggregate.n+=old_aggregate2.n;
+                            for(int i=0;i<old_aggregate2.M_A.size();i++)
+                            {
+                                S.M[old_aggregate2.M_A[i]].AID=AID1;
+                                S.M[old_aggregate2.M_A[i]].AsubID+=old_aggregate1.n;
+                            }
+                            new_aggregate.M_A.insert(new_aggregate.M_A.end(),old_aggregate2.M_A.begin(),old_aggregate2.M_A.end());
+                            S.Ag[AID1]=new_aggregate;
+                            S.Ag[AID2]=S.Ag.back();
+                            for(int i=0;i<S.Ag[AID2].M_A.size();i++)
+                            {
+                                S.M[S.Ag[AID2].M_A[i]].AID=AID2;    
+                            }
+                            S.Ag.pop_back();
+
+                        }
                     }
 
-                }*/
+                }
             } 
                      
         }
@@ -710,15 +744,15 @@ double MC::Dihedral_energy()
 }
 int MC::bond_energy()
 {
-    double ebond;
+    double ebond=0;
     int nbond=S.H.size();
     //ebond=-nbond*S.E_1;
     return nbond;
 }
 int MC::bond_freeze_freenerngy()
 {
-    double efreeze;
-    int nfreeze;
+    double efreeze=0;
+    int nfreeze=0;
     for(int i=0;i<S.NMOL;i++)
     {
         Molecule m=S.M[i];
